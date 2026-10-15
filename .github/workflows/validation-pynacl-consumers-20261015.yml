@@ -1,0 +1,76 @@
+name: PyNaCl 3.15 artifact consumers 20261015
+on:
+  push:
+    branches:
+      - ci/validate-pynacl-consumers-20261015
+permissions:
+  contents: read
+  actions: read
+
+env:
+  PIP_CONSTRAINT: ${{ github.workspace }}/.github/validation-constraints.txt
+
+jobs:
+  installed-wheel:
+    name: Installed release wheel ${{ matrix.python }} ${{ matrix.name }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-latest
+            artifact: pynacl-*-manylinux2014_x86_64-cp38-cp38m
+            python: "3.15"
+            arch: x64
+            machine: x86_64
+            free_threaded: "false"
+          - name: macOS ARM64
+            runner: macos-latest
+            artifact: pynacl-*-macOS-3.13
+            python: "3.15"
+            arch: arm64
+            machine: arm64
+            free_threaded: "false"
+          - name: Windows x64
+            runner: windows-latest
+            artifact: pynacl-*-win-x64-3.13
+            python: "3.15"
+            arch: x64
+            machine: AMD64
+            free_threaded: "false"
+          - name: macOS Intel
+            runner: macos-15-intel
+            artifact: pynacl-*-macOS-3.15t
+            python: "3.15t"
+            arch: x64
+            machine: x86_64
+            free_threaded: "true"
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python }}
+          architecture: ${{ matrix.arch }}
+      - name: Verify exact successful build provenance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          test "$(gh api repos/shaan-forks/pynacl/actions/runs/38744768488 --jq .head_sha)" = a525e7ede9c040081c69f1b32c24b550af4472e8
+          test "$(gh api repos/shaan-forks/pynacl/actions/runs/38744768488 --jq .conclusion)" = success
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: shaan-forks/pynacl
+          run-id: 38744768488
+          pattern: ${{ matrix.artifact }}
+          path: wheelhouse
+          merge-multiple: true
+      - name: Run full suite against exact retained release artifact
+        env:
+          EXPECTED_FREE_THREADED: ${{ matrix.free_threaded }}
+          EXPECTED_MACHINE: ${{ matrix.machine }}
+        run: python .github/validation-consumers-315.py
