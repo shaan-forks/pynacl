@@ -1,11 +1,6 @@
-name: PyNaCl 3.15 validation wheels 20261015
+name: Wheel Builder
 permissions:
   contents: read
-
-env:
-  PIP_CONSTRAINT: ${{ github.workspace }}/.github/validation-constraints.txt
-  UV_CONSTRAINT: ${{ github.workspace }}/.github/validation-constraints.txt
-  UV_BUILD_CONSTRAINT: ${{ github.workspace }}/.github/validation-constraints.txt
 on:
   workflow_dispatch:
     inputs:
@@ -13,8 +8,6 @@ on:
         description: The version to build
         required: true
   push:
-    branches:
-      - ci/validate-pynacl-315-20261015
     tags:
       - '*.*.*'
   pull_request:
@@ -118,8 +111,6 @@ jobs:
           key.verify_key.verify(signature)
           "
 
-      - name: Run full installed-wheel suite outside checkout
-        run: .venv/bin/python .github/validation-wheel-tests.py
       - run: mkdir pynacl-wheelhouse
       - run: mv wheelhouse/pynacl*.whl pynacl-wheelhouse/
       - uses: actions/upload-artifact@v7
@@ -196,8 +187,6 @@ jobs:
           key.verify_key.verify(signature)
           "
 
-      - name: Run full installed-wheel suite outside checkout
-        run: venv/bin/python .github/validation-wheel-tests.py
       - run: mkdir pynacl-wheelhouse
       - run: mv wheelhouse/pynacl*.whl pynacl-wheelhouse/
       - uses: actions/upload-artifact@v7
@@ -279,52 +268,9 @@ jobs:
           signature = key.sign(b'test')
           key.verify_key.verify(signature)
           "
-      - name: Run full installed-wheel suite outside checkout
-        run: python .github/validation-wheel-tests.py
       - run: mkdir pynacl-wheelhouse
       - run: move wheelhouse\pynacl*.whl pynacl-wheelhouse\
       - uses: actions/upload-artifact@v7
         with:
           name: "pynacl-${{ github.event.inputs.version }}-win-${{ matrix.WINDOWS.ARCH }}-${{ matrix.PYTHON.VERSION }}"
           path: pynacl-wheelhouse\
-
-  oldest-python-wheel:
-    name: Python 3.8 installed ordinary wheel ${{ matrix.name }}
-    needs: [manylinux, macos, windows]
-    if: ${{ !cancelled() }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: Linux x64
-            runner: ubuntu-latest
-            arch: x64
-            artifact: pynacl-*-manylinux2014_x86_64-cp38-cp38m
-          - name: macOS x64
-            runner: macos-15-intel
-            arch: x64
-            artifact: pynacl-*-macOS-3.13
-          - name: Windows x64
-            runner: windows-latest
-            arch: x64
-            artifact: pynacl-*-win-x64-3.13
-          - name: Windows x86
-            runner: windows-latest
-            arch: x86
-            artifact: pynacl-*-win-x86-3.13
-    steps:
-      - uses: actions/checkout@v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.8'
-          architecture: ${{ matrix.arch }}
-      - uses: actions/download-artifact@v8.0.2
-        with:
-          pattern: ${{ matrix.artifact }}
-          path: wheelhouse
-          merge-multiple: true
-      - name: Exercise exact built wheel in a clean Python 3.8 environment
-        run: python .github/validation-floor-tests.py
